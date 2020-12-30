@@ -1,5 +1,5 @@
 # ansible-zOS-dataset-sync
-Import / Export multiple datasets from z/OS with Ansible
+Import / Export multiple datasets from z/OS with Ansible.
 
 ## Notes
 I heard from COBOL Devs and z/OS engineers that they often run into the problem that they need JCLs on other z/OS instances. However copying the necessary datasets manually is not very pleasant and a Rexx script is often too complex / requires too much customization with each move.
@@ -24,3 +24,5 @@ As a student that works part-time as a COBOL developer, this would be a very wel
 The playbooks are well structured and easily expandable with more features such as automatic text replacements during import and export or multi-user setups. The playbooks could also easily be merged together to export and import to other systems in one execution.
 A big advantage of this solution is that it enables you to have a single source of truth when working across multiple systems. Just add more hosts to the host file and all the hosts will be updated. 
 Another issue one might face during synchronization is that small adjustments in the JCLs / scripts are needed e.g. replacing the userid before an import. For this use case, all the files are converted from EBCDIC to ASCII upon export and vice versa during the import. This enables you to easily edit the JCLs on your computer with your favorite editor.
+
+z07779
