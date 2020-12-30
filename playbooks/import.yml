@@ -1,0 +1,71 @@
+---
+  - hosts: import_mtm
+    gather_facts: yes
+    environment:
+      "{{default_environment}}"
+        
+    collections:
+      - ibm.ibm_zos_core
+    
+    vars:
+      archive_path: "/root/export_2020-12-29.tar"
+
+    tasks:
+
+      - name: create tmp directory for archive
+        tempfile:
+          state: directory
+        register: tmp_dir_archive
+
+      - name: upload
+        zos_copy:
+          src: "{{archive_path}}"
+          dest: "{{tmp_dir_archive.path}}/import.tar"
+          is_binary: true
+
+      - name: create tmp directory
+        tempfile:
+          state: directory
+        register: tmp_dir
+
+      - name: extract files
+        command:
+          cmd: tar -xfUX {{tmp_dir_archive.path}}/import.tar -C {{tmp_dir.path}}
+          warn: false
+      
+      - name: cleanup tmp archive dir
+        when: tmp_dir_archive is defined
+        file:
+          path: "{{tmp_dir_archive.path}}"
+          state: absent
+
+      - name: ASCII to EBCDIC
+        zos_encode:
+          src: "{{tmp_dir.path}}"
+          from_encoding: ISO8859-1
+          to_encoding: IBM-1047
+
+      - name: get dataset list for import
+        find:
+          paths: "{{tmp_dir.path}}"
+          depth: 1
+          file_type: any
+        register: import_datasets
+
+      - name: Log datasets being imported
+        debug:
+          msg: "Importing {{import_datasets.files | map(attribute='path') | map('basename') | join(', ')}}"
+
+      - name: copy to datasets
+        zos_copy:
+          src: "{{item.path}}"
+          dest: "{{item.path | basename}}"
+          remote_src: true
+        loop: "{{import_datasets.files}}"
+        register: copy_result
+        
+      - name: cleanup tmp dir
+        when: tmp_dir is defined
+        file:
+          path: "{{tmp_dir.path}}"
+          state: absent

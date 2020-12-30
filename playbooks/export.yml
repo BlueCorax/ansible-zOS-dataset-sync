@@ -1,0 +1,64 @@
+---
+  - hosts: mtm
+    gather_facts: yes
+    environment:
+      "{{default_environment}}"
+        
+    collections:
+      - ibm.ibm_zos_core
+    
+    vars:
+      datasets:
+        - "{{ansible_user}}.JCL"
+        - "{{ansible_user}}.BACKUP.PDS"
+        - "{{ansible_user}}.BACKUP.SEQ"
+      archive_path: /root/export_{{lookup('pipe','date +%Y-%m-%d')}}.tar
+
+    tasks:
+      - name: create tmp directory
+        tempfile:
+          state: directory
+        register: tmp_dir
+
+      - name: export datasets to tmp
+        zos_copy:
+          src: "{{item}}"
+          dest: "{{tmp_dir.path}}"
+          remote_src: true
+        loop: "{{datasets}}"
+
+      - name: EBCDIC to ASCII
+        zos_encode:
+          src: "{{tmp_dir.path}}"
+          from_encoding: IBM-1047
+          to_encoding: ISO8859-1
+
+      - name: create tmp directory for archive
+        tempfile:
+          state: directory
+        register: tmp_dir_archive
+
+      - name: archive files
+        command:
+          cmd: tar -cfUX {{tmp_dir_archive.path}}/export.tar -C {{tmp_dir.path}}
+          warn: false
+
+      - name: cleanup tmp dir
+        when: tmp_dir is defined
+        file:
+          path: "{{tmp_dir.path}}"
+          state: absent
+
+      - name: download archive
+        zos_fetch:
+          src: "{{tmp_dir_archive.path}}/export.tar"
+          dest: "{{archive_path}}"
+          flat: true
+          is_binary: true
+        ignore_errors: yes
+      
+      - name: cleanup tmp archive dir
+        when: tmp_dir_archive is defined
+        file:
+          path: "{{tmp_dir_archive.path}}"
+          state: absent
